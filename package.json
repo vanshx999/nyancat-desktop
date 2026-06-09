@@ -2,12 +2,12 @@
   "name": "nyancat-desktop",
   "version": "1.0.0",
   "description": "Free open-source pixel cat desktop companion",
+  "author": "Vansh",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:mac": "electron-builder --mac --arm64",
-    "build:win": "electron-builder --win --x64",
-    "build:all": "electron-builder --mac --win"
+    "build:mac": "electron-builder --mac --arm64 --x64",
+    "build:win": "electron-builder --win --x64"
   },
   "build": {
     "appId": "com.vansh.nyancat-desktop",
@@ -20,25 +20,21 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
-      "icon": "assets/icon.icns"
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }]
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "assets/icon.ico"
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
     },
     "nsis": {
       "oneClick": true,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
       "deleteAppDataOnUninstall": true
     }
   },
   "dependencies": {
-    "electron": "^35.0.0",
     "node-global-key-listener": "^0.3.0"
   },
   "devDependencies": {
+    "electron": "^35.0.0",
     "electron-builder": "^24.0.0"
   }
 }
