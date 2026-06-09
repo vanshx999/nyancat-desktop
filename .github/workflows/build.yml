@@ -1,0 +1,110 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'          # triggers on v1.0.0, v1.0.1 etc
+  workflow_dispatch:  # manual trigger from GitHub UI also works
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install electron-builder
+        run: npm install electron-builder --save-dev
+
+      - name: Build Mac (arm64 + x64)
+        run: npx electron-builder --mac --arm64 --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: dist/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install electron-builder
+        run: npm install electron-builder --save-dev
+
+      - name: Build Windows (x64)
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/*.exe
+
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Mac build
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: dist/mac
+
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: dist/win
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: NyanCat Desktop ${{ github.ref_name }}
+          body: |
+            ## 🐱 NyanCat Desktop ${{ github.ref_name }}
+
+            Free pixel cat desktop companion — follows your cursor, reacts to typing, reminds you to stretch!
+
+            ### Download
+            | Platform | File |
+            |----------|------|
+            | macOS (Apple Silicon M1/M2/M3/M4) | `NyanCat-Desktop-arm64.dmg` |
+            | macOS (Intel) | `NyanCat-Desktop-x64.dmg` |
+            | Windows | `NyanCat-Desktop-Setup.exe` |
+
+            ### Install
+            - **Mac:** Open `.dmg`, drag to Applications
+            - **Windows:** Run `.exe` installer, done!
+          files: |
+            dist/mac/*.dmg
+            dist/win/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
