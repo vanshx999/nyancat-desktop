@@ -1,12 +1,11 @@
 name: Build & Release
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-test:
-runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-
-steps:
-  - run: echo "workflow works"
+    steps:
+      - run: echo "workflow works"
