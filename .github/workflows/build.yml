@@ -25,9 +25,7 @@ jobs:
         run: npm install electron-builder --save-dev
 
       - name: Build Mac (arm64 + x64)
-        run: npx electron-builder --mac --arm64 --x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --x64 --publish never
 
       - name: Upload Mac artifacts
         uses: actions/upload-artifact@v4
@@ -53,9 +51,7 @@ jobs:
         run: npm install electron-builder --save-dev
 
       - name: Build Windows (x64)
-        run: npx electron-builder --win --x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --x64 --publish never
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -106,5 +102,3 @@ jobs:
             dist/win/*.exe
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
