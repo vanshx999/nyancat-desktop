@@ -1,110 +1,97 @@
 name: Build & Release
 
 on:
-  push:
-    tags:
-      - 'v*'          # triggers on v1.0.0, v1.0.1 etc
-  workflow_dispatch:  # manual trigger from GitHub UI also works
+push:
+tags:
+- 'v*'
+workflow_dispatch:
+
+permissions:
+contents: write
 
 jobs:
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+build-mac:
+runs-on: macos-latest
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+```
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm install
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: 20
 
-      - name: Install electron-builder
-        run: npm install electron-builder --save-dev
+  - name: Install dependencies
+    run: npm install
 
-      - name: Build Mac (arm64 + x64)
-        run: npx electron-builder --win --x64 --publish never
-      - name: List dist contents
-        run: |
-          pwd
-          ls -R
-          echo "----- DIST -----"
-          ls -R dist || true
+  - name: Build Mac
+    run: npx electron-builder --mac --arm64 --x64 --publish never
 
-      - name: Upload Mac artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mac-build
-          path: dist/**
+  - name: Upload Mac artifacts
+    uses: actions/upload-artifact@v4
+    with:
+      name: mac-build
+      path: dist
+```
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+build-windows:
+runs-on: windows-latest
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+```
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm install
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: 20
 
-      - name: Install electron-builder
-        run: npm install electron-builder --save-dev
+  - name: Install dependencies
+    run: npm install
 
-      - name: Build Windows (x64)
-        run: npx electron-builder --win --x64 --publish never
+  - name: Build Windows
+    run: npx electron-builder --win --x64 --publish never
 
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: dist/**
+  - name: Upload Windows artifacts
+    uses: actions/upload-artifact@v4
+    with:
+      name: windows-build
+      path: dist
+```
 
-  release:
-    needs: [build-mac, build-windows]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download Mac build
-        uses: actions/download-artifact@v4
-        with:
-          name: mac-build
-          path: dist/mac
+release:
+needs:
+- build-mac
+- build-windows
 
-      - name: Download Windows build
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-build
-          path: dist/win
+```
+runs-on: ubuntu-latest
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: NyanCat Desktop ${{ github.ref_name }}
-          body: |
-            ## 🐱 NyanCat Desktop ${{ github.ref_name }}
+steps:
+  - name: Download Mac build
+    uses: actions/download-artifact@v4
+    with:
+      name: mac-build
+      path: release/mac
 
-            Free pixel cat desktop companion — follows your cursor, reacts to typing, reminds you to stretch!
+  - name: Download Windows build
+    uses: actions/download-artifact@v4
+    with:
+      name: windows-build
+      path: release/win
 
-            ### Download
-            | Platform | File |
-            |----------|------|
-            | macOS (Apple Silicon M1/M2/M3/M4) | `NyanCat-Desktop-arm64.dmg` |
-            | macOS (Intel) | `NyanCat-Desktop-x64.dmg` |
-            | Windows | `NyanCat-Desktop-Setup.exe` |
+  - name: Show files
+    run: find release -type f
 
-            ### Install
-            - **Mac:** Open `.dmg`, drag to Applications
-            - **Windows:** Run `.exe` installer, done!
-          files: |
-            dist/mac/*.dmg
-            dist/win/*.exe
-          draft: false
-          prerelease: false
+  - name: Create GitHub Release
+    uses: softprops/action-gh-release@v2
+    with:
+      tag_name: ${{ github.ref_name }}
+      generate_release_notes: true
+      files: |
+        release/**/*.dmg
+        release/**/*.exe
+```
