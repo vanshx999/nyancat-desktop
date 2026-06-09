@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: transparent;
+      overflow: hidden;
+      width: 120px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    #cat-container {
+      position: relative;
+      width: 80px;
+      height: 120px;
+    }
+    #cat-canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+    }
+    #speech-bubble {
+      position: absolute;
+      top: -45px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #333;
+      white-space: nowrap;
+      display: none;
+      pointer-events: none;
+      z-index: 999;
+    }
+    #speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: #333;
+    }
+    #steam {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      display: none;
+      animation: steam-rise 0.8s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes steam-rise {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="cat-container">
+    <canvas id="cat-canvas" width="80" height="120"></canvas>
+    <div id="speech-bubble">hi!</div>
+    <div id="steam">💨</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('cat-canvas');
+    const ctx    = canvas.getContext('2d');
+    const bubble = document.getElementById('speech-bubble');
+    const steam  = document.getElementById('steam');
+
+    const S = 8; // pixels per cell
+    const W = 10, H = 15; // grid cols x rows
+
+    const C = {
+      _: null,
+      k: '#111111',  // black body
+      d: '#000000',  // dark outline
+      w: '#FFFFFF',  // white eyes
+      y: '#FFE566',  // yellow pupils
+      p: '#FF9AB2',  // pink ears/nose
+      g: '#2A2A2A',  // belly/shading
+      r: '#CC2200',  // overheat red
+      R: '#AA1100',  // overheat dark
+    };
+
+    const FRAMES = {
+      idle1: [
+        // row 0 — ears
+        '_','_','k','k','_','_','k','k','_','_',
+        // row 1 — ear tips with pink
+        '_','k','p','k','_','_','k','p','k','_',
+        // row 2 — top of head
+        '_','k','k','k','k','k','k','k','k','_',
+        // row 3 — head with eyes
+        'k','k','w','w','k','k','w','w','k','_',
+        // row 4 — pupils
+        'k','k','y','w','k','k','y','w','k','_',
+        // row 5 — nose
+        'k','k','k','p','k','k','k','k','k','_',
+        // row 6 — mouth + chin
+        'k','k','k','k','k','k','k','k','k','_',
+        // row 7 — neck/body top
+        '_','k','k','k','k','k','k','k','_','_',
+        // row 8 — body
+        '_','k','g','g','g','g','g','k','_','_',
+        // row 9 — body mid
+        '_','k','g','g','g','g','g','k','_','_',
+        // row 10 — body + tail start
+        '_','k','k','k','k','k','k','k','k','k',
+        // row 11 — body bottom + tail
+        '_','k','k','k','k','k','k','_','k','k',
+        // row 12 — upper legs
+        '_','_','k','k','_','_','k','k','_','_',
+        // row 13 — lower legs
+        '_','_','k','k','_','_','k','k','_','_',
+        // row 14 — paws
+        '_','k','k','k','_','k','k','k','k','_',
+      ],
+      idle2: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','k','k','k','k','k','k','k','k',
+        '_','k','k','k','k','k','k','_','_','k', // tail curled differently
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','k','_','_','_','_','k','k','_', // legs shifted
+        'k','k','k','_','_','_','k','k','k','_',
+      ],
+      walk1: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','k','k','k','k','k','k','k','k',
+        '_','k','k','k','k','k','k','_','k','k',
+        'k','k','_','_','_','_','k','k','_','_', // front leg forward
+        'k','k','_','_','_','k','k','_','_','_',
+        'k','k','_','_','k','k','k','_','_','_',
+      ],
+      walk2: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','k','k','k','k','k','k','k','k',
+        '_','k','k','k','k','k','k','_','k','k',
+        '_','_','k','k','_','_','_','_','k','k', // back leg forward
+        '_','_','_','k','k','_','_','_','k','k',
+        '_','_','k','k','k','_','_','_','k','k',
+      ],
+      type1: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        'k','k','g','g','g','g','g','k','k','_', // arms out
+        'k','_','k','k','k','k','k','k','_','k',
+        '_','_','k','k','k','k','k','_','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','k','k','_','k','k','k','k','_',
+      ],
+      type2: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','w','y','k','k','w','y','k','_', // eyes shifted - focused
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        '_','k','g','g','g','g','g','k','_','_',
+        '_','k','k','g','g','g','k','k','_','_', // arms down on keyboard
+        'k','k','_','k','k','k','_','_','k','k',
+        'k','_','_','k','k','k','_','_','_','k',
+        '_','_','_','k','k','k','_','_','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','k','k','_','k','k','k','k','_',
+      ],
+      stretch1: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        '_','k','k','k','k','k','k','k','_','_',
+        'k','k','g','g','g','g','g','k','k','k', // arms stretched wide
+        'k','_','g','g','g','g','g','_','k','_',
+        '_','_','k','k','k','k','k','_','_','_',
+        '_','_','k','k','k','k','k','_','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','k','k','_','k','k','k','k','_',
+      ],
+      stretch2: [
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','k','p','k','_','_','k','p','k','_',
+        '_','k','k','k','k','k','k','k','k','_',
+        'k','k','w','w','k','k','w','w','k','_',
+        'k','k','y','w','k','k','y','w','k','_',
+        'k','k','k','p','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','_',
+        'k','k','k','k','k','k','k','k','k','k', // arms fully out
+        'k','_','g','g','g','g','g','_','_','k',
+        '_','_','g','g','g','g','g','_','_','_',
+        '_','_','k','k','k','k','k','_','_','_',
+        '_','_','k','k','k','k','k','_','_','_',
+        '_','_','k','k','_','_','k','k','_','_',
+        '_','_','k','_','_','_','_','k','_','_',
+        '_','k','k','_','_','_','_','k','k','_',
+      ],
+      overheat: [
+        '_','_','r','r','_','_','r','r','_','_',
+        '_','r','p','r','_','_','r','p','r','_',
+        '_','r','r','r','r','r','r','r','r','_',
+        'r','r','w','r','r','r','r','w','r','_', // X eyes
+        'r','w','r','w','r','r','w','r','w','_',
+        'r','r','w','r','r','r','r','w','r','_',
+        'r','r','r','p','r','r','r','r','r','_',
+        '_','r','r','r','r','r','r','r','_','_',
+        '_','r','R','R','R','R','R','r','_','_',
+        '_','r','R','R','R','R','R','r','_','_',
+        '_','r','r','r','r','r','r','r','r','r',
+        '_','r','r','r','r','r','r','_','r','r',
+        '_','_','r','r','_','_','r','r','_','_',
+        '_','_','r','r','_','_','r','r','_','_',
+        '_','r','r','r','_','r','r','r','r','_',
+      ],
+    };
+
+    function drawFrame(key) {
+      ctx.clearRect(0, 0, 80, 120);
+      const px = FRAMES[key];
+      for (let i = 0; i < W * H; i++) {
+        const col = C[px[i]];
+        if (!col) continue;
+        ctx.fillStyle = col;
+        ctx.fillRect((i % W) * S, Math.floor(i / W) * S, S, S);
+      }
+    }
+
+    let state = 'idle', fi = 0, ft = 0;
+
+    const CFG = {
+      idle:     { frames: ['idle1','idle2'],                             fps: 2  },
+      walking:  { frames: ['walk1','walk2'],                             fps: 8  },
+      typing:   { frames: ['type1','type2'],                             fps: 10 },
+      overheat: { frames: ['overheat'],                                  fps: 4  },
+      stretch:  { frames: ['stretch1','stretch2','stretch1','stretch2'], fps: 3  },
+    };
+
+    drawFrame('idle1');
+
+    let lt = 0;
+    function animate(now) {
+      const dt = now - lt; lt = now;
+      const cfg = CFG[state] || CFG.idle;
+      ft += dt;
+      if (ft >= 1000 / cfg.fps) {
+        ft = 0;
+        fi = (fi + 1) % cfg.frames.length;
+        drawFrame(cfg.frames[fi]);
+      }
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    window.addEventListener('cat-state', (e) => {
+      const s = e.detail;
+      if (s === state) return;
+      state = s; fi = 0; ft = 0;
+      if (s === 'stretch') {
+        bubble.textContent = 'stretch time! 🙆';
+        bubble.style.display = 'block';
+        setTimeout(() => { bubble.style.display = 'none'; }, 6000);
+      } else {
+        bubble.style.display = 'none';
+      }
+      steam.style.display = (s === 'overheat') ? 'block' : 'none';
+    });
+
+    canvas.addEventListener('mouseover', () => {
+      if (state === 'idle') {
+        bubble.textContent = 'purr~ 😻';
+        bubble.style.display = 'block';
+        setTimeout(() => {
+          if (state === 'idle') bubble.style.display = 'none';
+        }, 1500);
+      }
+    });
+  </script>
+</body>
+</html>
