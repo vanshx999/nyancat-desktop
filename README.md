@@ -22,7 +22,7 @@ No Node.js required for the downloads above.
 
 Run from source
 Prerequisites: Node.js 18+
-bashgit clone https://github.com/YOUR_USERNAME/nyancat-desktop
+bashgit clone https://github.com/vanshx999/nyancat-desktop
 cd nyancat-desktop
 npm install
 npm start
