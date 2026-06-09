@@ -1,11 +1,21 @@
-name: Build & Release
+ame: Build Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build-mac:
+    runs-on: macos-latest
 
     steps:
-      - run: echo "workflow works"
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - run: npx electron-builder --mac --arm64 --x64 --publish never
+
+      - run: ls -R dist
