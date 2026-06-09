@@ -1,10 +1,10 @@
 name: Build & Release
 
 on:
-push:
-tags:
-- 'v*'
-workflow_dispatch:
+  push:
+    tags:
+    - 'v*'
+    workflow_dispatch:
 
 permissions:
 contents: write
@@ -13,6 +13,7 @@ jobs:
 build-mac:
 runs-on: macos-latest
 
+```
 steps:
   - name: Checkout code
     uses: actions/checkout@v4
@@ -33,10 +34,12 @@ steps:
     with:
       name: mac-build
       path: dist
+```
 
 build-windows:
 runs-on: windows-latest
 
+```
 steps:
   - name: Checkout code
     uses: actions/checkout@v4
@@ -57,12 +60,14 @@ steps:
     with:
       name: windows-build
       path: dist
+```
 
 release:
 needs:
 - build-mac
 - build-windows
 
+```
 runs-on: ubuntu-latest
 
 steps:
@@ -89,3 +94,4 @@ steps:
       files: |
         release/**/*.dmg
         release/**/*.exe
+```
