@@ -26,12 +26,18 @@ jobs:
 
       - name: Build Mac (arm64 + x64)
         run: npx electron-builder --win --x64 --publish never
+      - name: List dist contents
+        run: |
+          pwd
+          ls -R
+          echo "----- DIST -----"
+          ls -R dist || true
 
       - name: Upload Mac artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mac-build
-          path: dist/*.dmg
+          path: dist/**
 
   build-windows:
     runs-on: windows-latest
@@ -57,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: dist/*.exe
+          path: dist/**
 
   release:
     needs: [build-mac, build-windows]
